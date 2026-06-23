@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asset Lab — graphics and sound from code</title>
+<style>
+  :root{--bg1:#10162e;--bg2:#070a18;--panel:#18203f;--line:#2b3563;--text:#eaf0ff;--muted:#94a0c8;--accent:#5b8cff;--accent2:#8b5cf6}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,Segoe UI,Roboto,sans-serif;color:var(--text);
+    background:radial-gradient(circle at 50% -10%,#243056,var(--bg1) 50%,var(--bg2));
+    min-height:100vh;padding:26px 16px;display:flex;flex-direction:column;align-items:center;gap:18px}
+  h1{font-size:24px;font-weight:800;letter-spacing:.5px}
+  .sub{color:var(--muted);font-size:13.5px;max-width:560px;text-align:center;line-height:1.5}
+  .wrap{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;align-items:flex-start;width:100%;max-width:880px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+  .card h2{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:2px 9px;font-weight:600}
+  .stage{width:380px;max-width:84vw;aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:#000}
+  .stage svg{width:100%;height:100%;display:block}
+  .bob{animation:bob 2.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .eyes{transform-box:fill-box;transform-origin:center;animation:blink 4.2s infinite}
+  @keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+  .row{display:flex;gap:9px;flex-wrap:wrap;margin-top:13px}
+  button.b{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;
+    padding:10px 15px;border-radius:11px;font-size:13.5px;font-weight:700;cursor:pointer;
+    box-shadow:0 5px 14px rgba(91,140,255,.32);transition:transform .07s,opacity .15s}
+  button.b:hover{transform:translateY(-1px)}
+  button.b.ghost{background:#222c52;box-shadow:none;border:1px solid var(--line)}
+  .sfx{display:grid;grid-template-columns:1fr 1fr;gap:9px;width:300px;max-width:84vw}
+  button.snd{background:#1f2950;border:1px solid var(--line);color:var(--text);
+    padding:14px 10px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .07s,background .15s}
+  button.snd:hover{background:#283467;transform:translateY(-1px)}
+  button.snd .ic{font-size:22px}
+  button.snd:active{transform:scale(.96)}
+  .music{margin-top:10px;width:100%}
+  button.mus{width:100%;background:linear-gradient(135deg,#22c55e,#0d9488);color:#fff;border:none;
+    padding:12px;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer}
+  button.mus.on{background:linear-gradient(135deg,#ef4444,#b91c1c)}
+  .note{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.45}
+</style>
+</head>
+<body>
+  <h1>🎨🔊 Asset Lab</h1>
+  <div class="sub">Everything below is generated <b>100% in code</b> — not a single external image or audio file. The character, the scene and the sounds are all born right in your browser.</div>
+
+  <div class="wrap">
+    <!-- GRAPHICS -->
+    <div class="card">
+      <h2>Character + scene <span class="tag">SVG, vector</span></h2>
+      <div class="stage" id="stage"></div>
+      <div class="row">
+        <button class="b" id="randAll">🎲 Generate again</button>
+        <button class="b ghost" id="randTime">🌗 Time of day</button>
+      </div>
+      <div class="note">The creature's color, the shape of its ears/horns, its hair, the time of day and the scene — all different every time. That's "procedural design": endless unique variations from a set of rules.</div>
+    </div>
+
+    <!-- SOUND -->
+    <div class="card">
+      <h2>Sounds <span class="tag">Web Audio, synthesis</span></h2>
+      <div class="sfx">
+        <button class="snd" data-s="coin"><span class="ic">🪙</span>Coin</button>
+        <button class="snd" data-s="jump"><span class="ic">⬆️</span>Jump</button>
+        <button class="snd" data-s="hit"><span class="ic">💥</span>Explosion</button>
+        <button class="snd" data-s="power"><span class="ic">✨</span>Power-up</button>
+        <button class="snd" data-s="blip"><span class="ic">🔘</span>UI click</button>
+        <button class="snd" data-s="hurt"><span class="ic">🩸</span>Hurt</button>
+      </div>
+      <div class="music">
+        <button class="mus" id="music">▶ Play chiptune music</button>
+      </div>
+      <div class="note">Each sound is a generated waveform (tone + envelope + noise), not a recording. The music is a procedural melody played note by note. Everything can be saved as .wav.</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ============ GRAPHICS: procedural creature + scene ============
+  const stage = document.getElementById('stage');
+  const rnd = (a,b)=>a+Math.random()*(b-a);
+  const pick = arr=>arr[(Math.random()*arr.length)|0];
+
+  const BODIES = [
+    {name:'fox',  base:'#ff8a3d', dark:'#e2641c', belly:'#ffe6c7'},
+    {name:'mint', base:'#34d399', dark:'#10936c', belly:'#e7fff5'},
+    {name:'berry',base:'#f472b6', dark:'#c43d86', belly:'#ffe3f1'},
+    {name:'sky',  base:'#60a5fa', dark:'#2f6fd0', belly:'#e3f0ff'},
+    {name:'grape',base:'#a78bfa', dark:'#6d4fd0', belly:'#efe9ff'},
+    {name:'gold', base:'#fbbf24', dark:'#d99405', belly:'#fff4d6'},
+  ];
+  const SCARVES = ['#ef4444','#3b82f6','#10b981','#8b5cf6','#f59e0b','#ec4899','#06b6d4'];
+  const TIMES = [
+    {name:'twilight', sky:['#3b2a6b','#b06ab3'], cel:'#ffe8b0', celGlow:'#ffd27a', stars:true},
+    {name:'day',      sky:['#5cc6ff','#c9f0ff'], cel:'#fff4c2', celGlow:'#ffe88a', stars:false},
+    {name:'night',    sky:['#0b1437','#1f2a5e'], cel:'#dfe7ff', celGlow:'#9fb4ff', stars:true},
+    {name:'sunset',   sky:['#ff7e5f','#feb47b'], cel:'#fff1c9', celGlow:'#ffcaa0', stars:false},
+  ];
+
+  let timeIdx = 0;
+
+  function scene(creature, t){
+    const [s1,s2] = t.sky;
+    const stars = t.stars ? Array.from({length:26},()=>`<circle cx="${rnd(10,390)|0}" cy="${rnd(10,180)|0}" r="${rnd(.6,1.8).toFixed(1)}" fill="#fff" opacity="${rnd(.4,1).toFixed(2)}"/>`).join('') : '';
+    const hillA = pick(['#1c2a17','#241a33','#102a3a','#2a1f12']);
+    const hillB = pick(['#13200f','#1a1226','#0a2030','#1f160c']);
+    return `
+    <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${s1}"/><stop offset="1" stop-color="${s2}"/>
+        </linearGradient>
+        <radialGradient id="celg" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stop-color="${t.celGlow}" stop-opacity=".9"/>
+          <stop offset="1" stop-color="${t.celGlow}" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="body" cx="40%" cy="35%" r="70%">
+          <stop offset="0" stop-color="${creature.base}"/><stop offset="1" stop-color="${creature.dark}"/>
+        </radialGradient>
+        <filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
+      </defs>
+      <rect width="400" height="400" fill="url(#sky)"/>
+      ${stars}
+      <circle cx="305" cy="80" r="60" fill="url(#celg)"/>
+      <circle cx="305" cy="80" r="30" fill="${t.cel}"/>
+      <path d="M0,300 Q120,240 230,300 T400,290 L400,400 L0,400 Z" fill="${hillA}"/>
+      <path d="M0,340 Q140,300 260,345 T400,335 L400,400 L0,400 Z" fill="${hillB}"/>
+      <g class="bob" transform="translate(0,0)">${creatureSVG(creature)}</g>
+      ${grass(hillB)}
+    </svg>`;
+  }
+
+  function grass(c){
+    let g='';
+    for(let i=0;i<18;i++){const x=rnd(0,400),h=rnd(10,26);
+      g+=`<path d="M${x},400 q3,-${h} 6,0" stroke="${c}" stroke-width="3" fill="none" opacity=".8"/>`;}
+    return g;
+  }
+
+  function creatureSVG(c){
+    // ears or horns
+    let top='';
+    if(c.top==='ears'){
+      top=`<path d="M150,150 L138,96 L182,132 Z" fill="${c.base}"/><path d="M152,143 L146,112 L172,132 Z" fill="${c.scarf}" opacity=".8"/>
+           <path d="M250,150 L262,96 L218,132 Z" fill="${c.base}"/><path d="M248,143 L254,112 L228,132 Z" fill="${c.scarf}" opacity=".8"/>`;
+    } else if(c.top==='horns'){
+      top=`<path d="M158,150 q-18,-34 2,-58 q10,18 6,42 Z" fill="${c.belly}"/>
+           <path d="M242,150 q18,-34 -2,-58 q-10,18 -6,42 Z" fill="${c.belly}"/>`;
+    } else { // antenna
+      top=`<line x1="200" y1="150" x2="200" y2="100" stroke="${c.dark}" stroke-width="5"/><circle cx="200" cy="94" r="11" fill="${c.scarf}"/>`;
+    }
+    // hair tuft
+    const hair = c.hair ? `<path d="M186,150 q14,-26 28,0 q-6,-10 -14,-10 q-8,0 -14,10Z" fill="${c.dark}"/>` : '';
+    // tail
+    const tail = `<path d="M150,250 q-46,4 -52,-44 q22,18 40,12 q-10,18 12,32Z" fill="url(#body)"/><circle cx="104" cy="206" r="9" fill="${c.belly}"/>`;
+    return `
+      ${tail}
+      ${top}
+      <ellipse cx="200" cy="222" rx="74" ry="70" fill="url(#body)"/>
+      <ellipse cx="200" cy="244" rx="42" ry="40" fill="${c.belly}"/>
+      ${hair}
+      <g class="eyes">
+        <ellipse cx="176" cy="210" rx="13" ry="16" fill="#fff"/>
+        <ellipse cx="224" cy="210" rx="13" ry="16" fill="#fff"/>
+        <circle cx="178" cy="213" r="7" fill="#1a1a2e"/>
+        <circle cx="222" cy="213" r="7" fill="#1a1a2e"/>
+        <circle cx="180" cy="210" r="2.4" fill="#fff"/>
+        <circle cx="224" cy="210" r="2.4" fill="#fff"/>
+      </g>
+      <ellipse cx="158" cy="234" rx="9" ry="6" fill="${c.scarf}" opacity=".4"/>
+      <ellipse cx="242" cy="234" rx="9" ry="6" fill="${c.scarf}" opacity=".4"/>
+      <path d="M193,232 q7,8 14,0" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M168,286 q32,20 64,0 q-32,8 -64,0Z" fill="${c.scarf}"/>
+      <rect x="168" y="282" width="64" height="9" rx="4" fill="${c.scarf}"/>
+    `;
+  }
+
+  function makeCreature(){
+    const b = pick(BODIES);
+    return {...b, scarf:pick(SCARVES), top:pick(['ears','horns','antenna']), hair:Math.random()<.5};
+  }
+
+  let creature = makeCreature();
+  function render(){ stage.innerHTML = scene(creature, TIMES[timeIdx]); }
+
+  document.getElementById('randAll').addEventListener('click', ()=>{ creature=makeCreature(); render(); blip(); });
+  document.getElementById('randTime').addEventListener('click', ()=>{ timeIdx=(timeIdx+1)%TIMES.length; render(); blip(); });
+  render();
+
+  // ============ SOUND: Web Audio synthesis ============
+  let ac;
+  const ctx = ()=> ac || (ac = new (window.AudioContext||window.webkitAudioContext)());
+
+  function tone(freq, dur, type='square', vol=.25, slideTo=null){
+    const a=ctx(), t=a.currentTime;
+    const o=a.createOscillator(), g=a.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t+dur);
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(.0001, t+dur);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t+dur);
+  }
+  function noise(dur, vol=.4, cutoff=1200){
+    const a=ctx(), t=a.currentTime, n=Math.floor(a.sampleRate*dur);
+    const buf=a.createBuffer(1,n,a.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=a.createBufferSource(); src.buffer=buf;
+    const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=cutoff;
+    const g=a.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    src.connect(f).connect(g).connect(a.destination); src.start();
+  }
+
+  const SFX = {
+    coin(){ tone(988,.07,'square',.3); setTimeout(()=>tone(1319,.16,'square',.3),70); },
+    jump(){ tone(300,.22,'square',.3,760); },
+    hit(){ noise(.32,.5,900); tone(120,.3,'sawtooth',.25,40); },
+    power(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.14,'square',.28),i*80)); },
+    blip(){ tone(660,.05,'square',.22); },
+    hurt(){ tone(380,.25,'sawtooth',.3,90); },
+  };
+  function blip(){ try{SFX.blip();}catch(e){} }
+  document.querySelectorAll('.snd').forEach(b=> b.addEventListener('click', ()=> SFX[b.dataset.s]()));
+
+  // ---- procedural chiptune ----
+  let playing=false, step=0, timer=null;
+  const melody = [523,659,784,659,587,659,523,392, 440,523,659,523,494,587,659,784];
+  const bass   = [131,131,196,196,165,165,131,131, 147,147,196,196,165,165,98,98];
+  function loop(){
+    const m=melody[step%melody.length], b=bass[step%bass.length];
+    tone(m,.16,'square',.18);
+    tone(b,.22,'triangle',.22);
+    if(step%2===0) noise(.04,.12,4000); // hi-hat
+    step++;
+  }
+  const musBtn=document.getElementById('music');
+  musBtn.addEventListener('click', ()=>{
+    playing=!playing;
+    if(playing){ ctx(); step=0; loop(); timer=setInterval(loop,200); musBtn.textContent='⏸ Stop music'; musBtn.classList.add('on'); }
+    else { clearInterval(timer); musBtn.textContent='▶ Play chiptune music'; musBtn.classList.remove('on'); }
+  });
+})();
+</script>
+</body>
+</html>
