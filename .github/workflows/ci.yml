@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Static checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Assert index.html exists and is non-empty
+        run: |
+          test -s index.html
+          echo "index.html present ($(wc -c < index.html) bytes)"
+
+      - name: Lint HTML with HTMLHint
+        run: npx --yes htmlhint index.html

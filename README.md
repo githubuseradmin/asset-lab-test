@@ -1,6 +1,13 @@
 # Asset Lab
 
-A static HTML demo that procedurally generates game art (SVG) and sound (Web Audio) entirely in code — no external image or audio files.
+![CI](https://github.com/githubuseradmin/asset-lab-test/actions/workflows/ci.yml/badge.svg)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![built with](https://img.shields.io/badge/HTML%20%C2%B7%20CSS%20%C2%B7%20JS-informational)
+![demo](https://img.shields.io/badge/demo-live-brightgreen)
+
+**[▶ Live demo](https://githubuseradmin.github.io/asset-lab-test/)**
+
+A zero-dependency, single-file web demo that procedurally generates game **art** (SVG) and **sound** (Web Audio) entirely in code — no external image or audio files, no build step. Built for anyone who wants to see runtime asset generation in action.
 
 ## What it is
 
